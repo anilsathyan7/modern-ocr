@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local agent/editor state
+.agents/
+.codex/
+.code/
+
+# Local Python version managers
+.python-version
+
+# Jupyter-generated files
+.ipynb_checkpoints/
+
+# Generated output
+output/
