@@ -66,7 +66,7 @@ export VISION_AGENT_API_KEY="..."
 ## Run OCR
 
 Generate OCR outputs for the configured parsers. If no document path is passed,
-`ocr_models.py` uses `input/document.png`.
+`ocr_models.py` uses `input/modern_ocr_test.png`.
 
 ```bash
 # default input document

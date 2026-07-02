@@ -461,7 +461,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "document_path",
         nargs="?",
-        default="input/document.png",
+        default="input/modern_ocr_test.png",
         help="Document/image to parse.",
     )
     args = parser.parse_args()

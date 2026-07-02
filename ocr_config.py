@@ -108,7 +108,7 @@ MISTRAL_CHART_TABLE_ANNOTATION_FORMAT = {
 
 # ----------------------------- Eval Defaults -----------------------------
 
-DEFAULT_INPUT_DOCUMENT = "input/document.png"
+DEFAULT_INPUT_DOCUMENT = "input/modern_ocr_test.png"
 DEFAULT_OCR_EVAL_MODEL = os.getenv("OPENAI_OCR_EVAL_MODEL", "gpt-5.5")
 DEFAULT_OCR_EVAL_OUTPUT_DIR = "output/openai_eval"
 
@@ -181,7 +181,16 @@ regions. Treat information as present if it appears in any provided OCR text
 artifact, including full-detail fields, readable output, or structured
 annotations. Do not mark content as missing only because it appears in full
 detail rather than readable output; instead, mention that as a readability or
-usability issue if it matters.
+usability issue if it matters. This includes form controls: if checkbox or radio
+button states appear in any provided artifact, such as full-detail HTML or
+structured annotations, treat those states as captured even if the readable
+Markdown flattens them.
+
+Do not penalize provider markup that exists to preserve structure, grounding, or
+semantic visual descriptions. Examples include chunk anchors like
+<a id='...'></a>, table cell IDs, and pseudo-tags such as <::visual content::>,
+<::chart::>, or <::attestation::>. Treat these as acceptable output format
+markers unless they obscure, replace, or contradict the document content.
 
 For charts converted to tables, judge whether the semantic chart data is
 preserved. If the chart title, category labels, values, and units are captured,
