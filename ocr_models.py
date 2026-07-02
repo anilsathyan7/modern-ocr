@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import os
 
 from abc import ABC, abstractmethod
@@ -31,6 +32,41 @@ from ocr_helper import (
     save_nuextract3_outputs,
     save_paddleocr_outputs,
 )
+
+
+MISTRAL_CHART_TABLE_ANNOTATION_PROMPT = """Extract visible chart and table content from this document.
+
+Return concise markdown that can be appended to the OCR output. Include chart
+titles, axis labels, tick labels, legends, categories, and visible values. Use
+markdown tables for chart data or table data when possible. Do not infer values
+that are not visible; write "not visible" instead."""
+
+MISTRAL_CHART_TABLE_ANNOTATION_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "chart_table_markdown",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "markdown": {
+                    "type": "string",
+                    "description": (
+                        "Concise markdown containing extracted chart and table "
+                        "content. Return an empty string if none is present."
+                    ),
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Short caveats about missing or unclear values.",
+                },
+            },
+            "required": ["markdown", "notes"],
+            "additionalProperties": False,
+        },
+    },
+}
 
 
 class OCRModelBase(ABC):
@@ -388,6 +424,7 @@ class MistralOCRDocParser(OCRModelBase):
         table_format=None,
         extract_header=False,
         extract_footer=False,
+        extract_chart_table_markdown=True,
         draw_boxes=True,
         save_images=True,
     ) -> Any:
@@ -413,6 +450,17 @@ class MistralOCRDocParser(OCRModelBase):
             "extract_header": extract_header,
             "extract_footer": extract_footer,
         }
+        if extract_chart_table_markdown:
+            ocr_options.update(
+                {
+                    "document_annotation_format": (
+                        MISTRAL_CHART_TABLE_ANNOTATION_FORMAT
+                    ),
+                    "document_annotation_prompt": (
+                        MISTRAL_CHART_TABLE_ANNOTATION_PROMPT
+                    ),
+                }
+            )
         ocr_options = {
             key: value for key, value in ocr_options.items() if value is not None
         }
@@ -440,26 +488,34 @@ class MistralOCRDocParser(OCRModelBase):
 
 
 if __name__ == "__main__":
-    document_path = "input/utility_bill.pdf"
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "document_path",
+        nargs="?",
+        default="input/document.png",
+        help="Document/image to parse.",
+    )
+    args = parser.parse_args()
+    document_path = args.document_path
 
-    # with PPOCRDocParser() as model:
-    #     output = model.predict(document_path)
+    with PPOCRDocParser() as model:
+        output = model.predict(document_path)
 
-    # with NuExtract3DocParser() as model:
-    #     output = model.predict(document_path)
-    #     print(output)
+    with NuExtract3DocParser() as model:
+        output = model.predict(document_path)
+        print(output)
 
-    # with ChandraOCR2DocParser() as model:
-    #     output = model.predict(document_path)
-    #     print(output)
+    with ChandraOCR2DocParser() as model:
+        output = model.predict(document_path)
+        print(output)
 
-    # with LandingAIDocParser() as model:
-    #     output = model.predict(document_path)
+    with LandingAIDocParser() as model:
+        output = model.predict(document_path)
 
     with LlamaCloudDocParser() as model:
         output = model.predict(document_path)
         print(output.job.status)
 
-    # with MistralOCRDocParser() as model:
-    #     output = model.predict(document_path)
-    #     print(output.usage_info)
+    with MistralOCRDocParser() as model:
+        output = model.predict(document_path)
+        print(output.usage_info)

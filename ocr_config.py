@@ -71,7 +71,7 @@ PDF_RENDER_DPI = 300
 
 # ----------------------------- Eval Defaults -----------------------------
 
-DEFAULT_INPUT_DOCUMENT = "input/utility_bill.pdf"
+DEFAULT_INPUT_DOCUMENT = "input/document.png"
 DEFAULT_OCR_EVAL_MODEL = os.getenv("OPENAI_OCR_EVAL_MODEL", "gpt-5.5")
 DEFAULT_OCR_EVAL_OUTPUT_DIR = "output/openai_eval"
 
@@ -82,42 +82,42 @@ OCR_EVAL_IMAGE_EXTENSIONS = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
 
 OCR_EVAL_MANIFESTS = {
     "paddleocr": {
-        "model": "paddleocr",
+        "model": "PaddleOCR PPStructureV3",
         "input_document": DEFAULT_INPUT_DOCUMENT,
         "full_detail": "output/paddleocr/full_detail.json",
         "readable_output": "output/paddleocr/readable_output.md",
         "layout_overlay": "output/paddleocr/layout_overlay.png",
     },
     "nuextract3": {
-        "model": "nuextract3",
+        "model": "NuExtract 3",
         "input_document": DEFAULT_INPUT_DOCUMENT,
         "full_detail": "output/nuextract3/full_detail.txt",
         "readable_output": "output/nuextract3/readable_output.txt",
         "layout_overlay": None,
     },
     "chandra_ocr_2": {
-        "model": "chandra_ocr_2",
+        "model": "Chandra OCR 2",
         "input_document": DEFAULT_INPUT_DOCUMENT,
         "full_detail": "output/chandra_ocr_2/full_detail.json",
         "readable_output": "output/chandra_ocr_2/readable_output.md",
         "layout_overlay": "output/chandra_ocr_2/layout_overlay.png",
     },
     "landingai": {
-        "model": "landingai",
+        "model": "LandingAI DPT-2",
         "input_document": DEFAULT_INPUT_DOCUMENT,
         "full_detail": "output/landingai/full_detail.json",
         "readable_output": "output/landingai/readable_output.md",
         "layout_overlay": "output/landingai/layout_overlay.png",
     },
     "llamacloud": {
-        "model": "llamacloud",
+        "model": "LlamaParse",
         "input_document": DEFAULT_INPUT_DOCUMENT,
         "full_detail": "output/llamacloud/full_detail.json",
         "readable_output": "output/llamacloud/readable_output.md",
         "layout_overlay": "output/llamacloud/layout_overlay.png",
     },
     "mistralocr": {
-        "model": "mistralocr",
+        "model": "Mistral OCR",
         "input_document": DEFAULT_INPUT_DOCUMENT,
         "full_detail": "output/mistralocr/full_detail.json",
         "readable_output": "output/mistralocr/readable_output.md",
@@ -140,9 +140,35 @@ judge region detection quality.
 Scores must be 0-100, where 100 means effectively complete and faithful. Penalize
 missing content, hallucinated content, wrong values, broken table structure,
 incorrect reading order, and layout overlays that miss or misclassify important
-regions. If no layout overlay is configured, say that visual grounding cannot be
-verified from an overlay and reflect that in the visual_grounding score. Be
-concrete and cite the provided file roles in evidence_files."""
+regions. Treat information as present if it appears in any provided OCR text
+artifact, including full-detail fields, readable output, or structured
+annotations. Do not mark content as missing only because it appears in full
+detail rather than readable output; instead, mention that as a readability or
+usability issue if it matters.
+
+For charts converted to tables, judge whether the semantic chart data is
+preserved. If the chart title, category labels, values, and units are captured,
+do not penalize missing axis ticks, gridlines, or other visual scaffolding. Do
+not call values like "98" missing percent signs when the table/header already
+states the unit, such as "Accuracy (%)". Generic inferred headers are acceptable
+when they faithfully describe the chart axes or categories. A blank category
+column header is not an issue when the chart title or nearby text clearly
+defines that category, such as "BY FONT TYPE". For these harmless formatting
+quirks, return "No significant issue." rather than creating a minor issue.
+Treat isolated raw OCR noise as minor if it is not present in the readable or
+structured output and does not change what a user consumes. If no layout overlay
+is configured, say that visual grounding cannot be verified from an overlay and
+reflect that in the visual_grounding score.
+
+Return one concise human-review finding for each issue category:
+text_accuracy_issue, structured_data_issue, visual_elements_issue,
+layout_reading_order_issue, and hallucination_noise_issue. Each finding must be
+one self-contained sentence. If a category has no meaningful issue, write
+"No significant issue.".
+
+Also return issue_regions with at most one localizable region per issue category.
+Use 1-based page numbers and normalized [x1, y1, x2, y2] boxes relative to the
+original page. Leave abstract or non-localizable issues out of issue_regions."""
 
 OCR_EVAL_USER_PROMPT = "Evaluate the attached OCR files."
 
@@ -176,56 +202,51 @@ OCR_EVAL_SCHEMA = {
             ],
             "additionalProperties": False,
         },
-        "summary": {"type": "string"},
-        "strengths": {
+        "text_accuracy_issue": {"type": "string"},
+        "structured_data_issue": {"type": "string"},
+        "visual_elements_issue": {"type": "string"},
+        "layout_reading_order_issue": {"type": "string"},
+        "hallucination_noise_issue": {"type": "string"},
+        "issue_regions": {
             "type": "array",
-            "items": {"type": "string"},
-        },
-        "major_misses": {
-            "type": "array",
+            "maxItems": 5,
             "items": {
                 "type": "object",
                 "properties": {
-                    "severity": {
+                    "issue_key": {
                         "type": "string",
-                        "enum": ["critical", "major", "minor"],
+                        "enum": [
+                            "text_accuracy_issue",
+                            "structured_data_issue",
+                            "visual_elements_issue",
+                            "layout_reading_order_issue",
+                            "hallucination_noise_issue",
+                        ],
                     },
-                    "finding": {"type": "string"},
-                    "expected": {"type": "string"},
-                    "observed": {"type": "string"},
-                    "evidence_files": {
+                    "page": {"type": "integer"},
+                    "bbox": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {"type": "number"},
+                        "minItems": 4,
+                        "maxItems": 4,
                     },
+                    "label": {"type": "string"},
                 },
-                "required": [
-                    "severity",
-                    "finding",
-                    "expected",
-                    "observed",
-                    "evidence_files",
-                ],
+                "required": ["issue_key", "page", "bbox", "label"],
                 "additionalProperties": False,
             },
-        },
-        "layout_notes": {
-            "type": "array",
-            "items": {"type": "string"},
-        },
-        "recommended_next_checks": {
-            "type": "array",
-            "items": {"type": "string"},
         },
     },
     "required": [
         "evaluated_model",
         "input_document",
         "scores",
-        "summary",
-        "strengths",
-        "major_misses",
-        "layout_notes",
-        "recommended_next_checks",
+        "text_accuracy_issue",
+        "structured_data_issue",
+        "visual_elements_issue",
+        "layout_reading_order_issue",
+        "hallucination_noise_issue",
+        "issue_regions",
     ],
     "additionalProperties": False,
 }
