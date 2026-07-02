@@ -12,29 +12,29 @@ structure, reading order, visual grounding, and structured data.
 
 ## OCR Features
 
-- **Text recognition**: handles different fonts, sizes, languages, orientations,
+- **Text recognition**: Handles different fonts, sizes, languages, orientations,
   and document quality levels.
-- **Reading order**: preserves the natural flow of multi-column and complex
+- **Reading order**: Preserves the natural flow of multi-column and complex
   documents.
-- **Layout understanding**: detects titles, headings, paragraphs, lists,
+- **Layout understanding**: Detects titles, headings, paragraphs, lists,
   captions, headers, footers, marginalia, and page numbers.
-- **Tables and forms**: preserves rows, columns, merged cells, form fields,
+- **Tables and forms**: Preserves rows, columns, merged cells, form fields,
   checkboxes, radio buttons, and selected marks.
-- **Key-value extraction**: extracts structured fields from invoices, receipts,
+- **Key-value extraction**: Extracts structured fields from invoices, receipts,
   IDs, certificates, forms, and similar documents.
-- **Charts and figures**: extracts chart titles, labels, legends, values, units,
+- **Charts and figures**: Extracts chart titles, labels, legends, values, units,
   figures, images, logos, and visual meaning.
-- **Handwriting and symbols**: handles handwritten text, formulas, equations,
+- **Handwriting and symbols**: Handles handwritten text, formulas, equations,
   and scientific notation where supported.
-- **Seals and attestations**: detects stamps, seals, signatures, attestations,
+- **Seals and attestations**: Detects stamps, seals, signatures, attestations,
   and official document markings.
-- **Visual grounding**: returns bounding boxes, coordinates, layout regions,
+- **Visual grounding**: Returns bounding boxes, coordinates, layout regions,
   confidence scores, or overlays linked to the source page.
-- **Flexible input and output**: handles PDFs, images, scans, Word-style
+- **Flexible input and output**: Handles PDFs, images, scans, Word-style
   documents, and outputs Markdown, HTML, JSON, or structured text.
-- **Custom extraction**: supports schema-based extraction, custom prompts,
+- **Custom extraction**: Supports schema-based extraction, custom prompts,
   document classification, and task-specific parsing.
-- **Robustness**: handles low-quality scans, blur, skew, rotation, shadows,
+- **Robustness**: Handles low-quality scans, blur, skew, rotation, shadows,
   compression artifacts, multi-page documents, and repeated headers or footers.
 
 ## Requirements
