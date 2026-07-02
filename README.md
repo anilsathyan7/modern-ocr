@@ -79,10 +79,23 @@ uv run python ocr_models.py input/virology_pg2.pdf
 Outputs are written under `output/<parser_name>/`, for example
 `output/paddleocr/readable_output.md` and `output/paddleocr/full_detail.json`.
 
+Example OCR overlay outputs:
+
+| Chandra OCR 2 | LandingAI |
+| --- | --- |
+| ![Chandra OCR 2 OCR overlay](images/chandra_ocr_2_ocr_overlay.png) | ![LandingAI OCR overlay](images/landingai_ocr_overlay.png) |
+
 ## Run Evaluation
 
-Compare saved OCR outputs against the original document and write the scores to
-CSV:
+The evaluation step compares each saved OCR result against the original input
+document. For each model, it reads the raw detail file, the human-readable
+output, and any layout overlay image, then scores how faithfully the OCR
+preserves the document.
+
+The evaluator looks for practical OCR issues: missing or incorrect text,
+broken key-value fields, weak table extraction, lost checkbox or radio-button
+states, skipped logos or stamps, wrong reading order, poor visual grounding,
+and hallucinated or noisy text.
 
 ```bash
 # all outputs
@@ -95,6 +108,22 @@ uv run python ocr_eval.py paddleocr llamacloud mistralocr
 uv run python ocr_eval.py all --output output/openai_eval/results.csv
 ```
 
-The evaluation CSV is written to `output/openai_eval/results.csv` by default.
-Issue overlay images are also written to the same directory when the evaluator
-returns localizable issue regions.
+The main result is `output/openai_eval/results.csv`, which contains per-model
+scores and short issue notes. When an issue can be located on the page, the
+evaluator also writes issue overlay images in the same directory so the problem
+can be inspected visually.
+
+Example issue overlays from the weakest current runs:
+
+| PaddleOCR PPStructureV3 | Mistral OCR |
+| --- | --- |
+| ![PaddleOCR issue overlay](images/paddleocr_issue_overlay.png) | ![Mistral OCR issue overlay](images/mistralocr_issue_overlay.png) |
+
+## References
+
+- **PaddleOCR v6**: [PaddleOCR Github](https://github.com/PaddlePaddle/PaddleOCR)
+- **NuExtract 3**: [NuExtract3 Huggingface](https://huggingface.co/numind/NuExtract3)
+- **Chandra OCR 2**: [Chandra OCR 2 Huggingface](https://huggingface.co/datalab-to/chandra-ocr-2)
+- **LandingAI ADE**: [LandingAI Documentation](https://docs.landing.ai/ade/ade-overview)
+- **LlamaIndex**: [LlamaParse Documentation](https://developers.llamaindex.ai/llamaparse/parse/getting_started/)
+- **Mistral OCR v4**: [Mistral Documentation](https://docs.mistral.ai/studio-api/document-processing/overview)

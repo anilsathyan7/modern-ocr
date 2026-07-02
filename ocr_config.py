@@ -181,10 +181,11 @@ regions. Treat information as present if it appears in any provided OCR text
 artifact, including full-detail fields, readable output, or structured
 annotations. Do not mark content as missing only because it appears in full
 detail rather than readable output; instead, mention that as a readability or
-usability issue if it matters. This includes form controls: if checkbox or radio
-button states appear in any provided artifact, such as full-detail HTML or
-structured annotations, treat those states as captured even if the readable
-Markdown flattens them.
+usability issue if it matters. For form controls, if checkbox or radio-button
+states appear in any provided artifact, such as full-detail HTML or structured
+annotations, treat those states as captured. Do not report them as missing,
+incorrect, or as a readability/usability issue solely because the readable
+Markdown flattens or omits the control markup.
 
 Do not penalize provider markup that exists to preserve structure, grounding, or
 semantic visual descriptions. Examples include chunk anchors like
