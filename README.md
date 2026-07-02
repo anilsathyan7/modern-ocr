@@ -1,6 +1,41 @@
-# OCR
+# Modern OCR
 
-Setup for the OCR comparison/evaluation repo.
+
+Modern OCR systems are no longer just text recognizers; they are document
+understanding systems. A useful OCR pipeline should preserve the document's
+text, structure, visual grounding, and meaning in a form that downstream tools
+can use and humans can review.
+
+This project compares recent open-source and cloud OCR systems on the same set
+of documents, then evaluates how well each one preserves the document's text,
+structure, reading order, visual grounding, and structured data.
+
+## OCR Features
+
+- **Text recognition**: handles different fonts, sizes, languages, orientations,
+  and document quality levels.
+- **Reading order**: preserves the natural flow of multi-column and complex
+  documents.
+- **Layout understanding**: detects titles, headings, paragraphs, lists,
+  captions, headers, footers, marginalia, and page numbers.
+- **Tables and forms**: preserves rows, columns, merged cells, form fields,
+  checkboxes, radio buttons, and selected marks.
+- **Key-value extraction**: extracts structured fields from invoices, receipts,
+  IDs, certificates, forms, and similar documents.
+- **Charts and figures**: extracts chart titles, labels, legends, values, units,
+  figures, images, logos, and visual meaning.
+- **Handwriting and symbols**: handles handwritten text, formulas, equations,
+  and scientific notation where supported.
+- **Seals and attestations**: detects stamps, seals, signatures, attestations,
+  and official document markings.
+- **Visual grounding**: returns bounding boxes, coordinates, layout regions,
+  confidence scores, or overlays linked to the source page.
+- **Flexible input and output**: handles PDFs, images, scans, Word-style
+  documents, and outputs Markdown, HTML, JSON, or structured text.
+- **Custom extraction**: supports schema-based extraction, custom prompts,
+  document classification, and task-specific parsing.
+- **Robustness**: handles low-quality scans, blur, skew, rotation, shadows,
+  compression artifacts, multi-page documents, and repeated headers or footers.
 
 ## Requirements
 
