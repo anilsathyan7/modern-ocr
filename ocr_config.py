@@ -69,6 +69,43 @@ MISTRALOCR_LABEL_COLORS = {
 PDF_RENDER_DPI = 300
 
 
+# ----------------------------- Mistral OCR Options -----------------------------
+
+MISTRAL_CHART_TABLE_ANNOTATION_PROMPT = """Extract visible chart and table content from this document.
+
+Return concise markdown that can be appended to the OCR output. Include chart
+titles, axis labels, tick labels, legends, categories, and visible values. Use
+markdown tables for chart data or table data when possible. Do not infer values
+that are not visible; write "not visible" instead."""
+
+MISTRAL_CHART_TABLE_ANNOTATION_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "chart_table_markdown",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "markdown": {
+                    "type": "string",
+                    "description": (
+                        "Concise markdown containing extracted chart and table "
+                        "content. Return an empty string if none is present."
+                    ),
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Short caveats about missing or unclear values.",
+                },
+            },
+            "required": ["markdown", "notes"],
+            "additionalProperties": False,
+        },
+    },
+}
+
+
 # ----------------------------- Eval Defaults -----------------------------
 
 DEFAULT_INPUT_DOCUMENT = "input/document.png"
