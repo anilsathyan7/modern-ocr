@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
+import paddle
 import torch
 from chandra.input import load_file
 from chandra.model.hf import generate_hf
@@ -38,7 +42,24 @@ from ocr_helper import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
+def synchronize_accelerators():
+    """Synchronize GPU work so timing logs reflect completed model runs."""
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+
+    try:
+        if paddle.is_compiled_with_cuda():
+            paddle.device.synchronize()
+    except (AttributeError, RuntimeError):
+        pass
+
+
 class OCRModelBase(ABC):
+    model_name = None
+
     def __enter__(self):
         return self
 
@@ -54,8 +75,23 @@ class OCRModelBase(ABC):
         """Release model-owned references and cached GPU memory."""
         flush_gpu_memory()
 
+    @contextmanager
+    def timed_model_run(self):
+        """Log only the core model/API call duration."""
+        model_name = self.model_name or self.__class__.__name__
+        synchronize_accelerators()
+        started_at = perf_counter()
+        try:
+            yield
+        finally:
+            synchronize_accelerators()
+            elapsed_seconds = perf_counter() - started_at
+            logger.info("%s model run time: %.2fs", model_name, elapsed_seconds)
+
 
 class PPOCRDocParser(OCRModelBase):
+    model_name = "PaddleOCR PPStructureV3"
+
     def __init__(
         self,
         output_prefix="paddleocr",
@@ -118,10 +154,11 @@ class PPOCRDocParser(OCRModelBase):
         }
 
         # Parse document structure.
-        results = self.pipeline.predict(
-            input=image_path,
-            **paddle_options,
-        )
+        with self.timed_model_run():
+            results = self.pipeline.predict(
+                input=image_path,
+                **paddle_options,
+            )
 
         return save_paddleocr_outputs(
             results,
@@ -134,6 +171,8 @@ class PPOCRDocParser(OCRModelBase):
 
 
 class NuExtract3DocParser(OCRModelBase):
+    model_name = "NuExtract3"
+
     def __init__(
         self,
         model_id="numind/NuExtract3",
@@ -196,12 +235,13 @@ class NuExtract3DocParser(OCRModelBase):
         ).to(self.model.device)
 
         # Generate OCR text.
-        with torch.inference_mode():
-            generated_ids = self.model.generate(
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                do_sample=False,
-        )
+        with self.timed_model_run():
+            with torch.inference_mode():
+                generated_ids = self.model.generate(
+                    **inputs,
+                    max_new_tokens=self.max_new_tokens,
+                    do_sample=False,
+            )
 
         # Decode only new tokens.
         generated_ids = generated_ids[:, inputs.input_ids.shape[1]:]
@@ -219,6 +259,8 @@ class NuExtract3DocParser(OCRModelBase):
 
 
 class ChandraOCR2DocParser(OCRModelBase):
+    model_name = "Chandra OCR 2"
+
     def __init__(
         self,
         model_id="datalab-to/chandra-ocr-2",
@@ -259,7 +301,8 @@ class ChandraOCR2DocParser(OCRModelBase):
             for image in images
         ]
 
-        results = generate_hf(batch, self.model)
+        with self.timed_model_run():
+            results = generate_hf(batch, self.model)
         return save_chandra_outputs(
             results,
             images,
@@ -275,6 +318,8 @@ class ChandraOCR2DocParser(OCRModelBase):
 
 
 class LandingAIDocParser(OCRModelBase):
+    model_name = "LandingAI ADE"
+
     def __init__(
         self,
         model="dpt-2-latest",
@@ -299,10 +344,11 @@ class LandingAIDocParser(OCRModelBase):
         output_dir = ensure_output_dir(save_to, self.output_prefix)
 
         # Parse with LandingAI.
-        parse_response = self.client.parse(
-            document=document_path,
-            model=self.model,
-        )
+        with self.timed_model_run():
+            parse_response = self.client.parse(
+                document=document_path,
+                model=self.model,
+            )
 
         return save_landingai_outputs(
             parse_response,
@@ -314,6 +360,8 @@ class LandingAIDocParser(OCRModelBase):
 
 
 class LlamaCloudDocParser(OCRModelBase):
+    model_name = "LlamaCloud/LlamaParse"
+
     def __init__(
         self,
         tier="agentic",
@@ -337,31 +385,32 @@ class LlamaCloudDocParser(OCRModelBase):
             purpose="parse",
         )
         # Parse with LlamaCloud.
-        result = self.client.parsing.parse(
-            file_id=file_obj.id,
-            tier=self.tier,
-            version=self.version,
-            expand=[
-                "markdown_full",
-                "text_full",
-                "items",
-                "metadata",
-                "job_metadata",
-                "items_content_metadata",
-                "images_content_metadata",
-                "raw_words_content_metadata",
-            ],
-            output_options={
-                "granular_bboxes": ["word", "line", "cell"],
-                "images_to_save": ["layout"],
-                "spatial_text": {
-                    "preserve_very_small_text": True,
+        with self.timed_model_run():
+            result = self.client.parsing.parse(
+                file_id=file_obj.id,
+                tier=self.tier,
+                version=self.version,
+                expand=[
+                    "markdown_full",
+                    "text_full",
+                    "items",
+                    "metadata",
+                    "job_metadata",
+                    "items_content_metadata",
+                    "images_content_metadata",
+                    "raw_words_content_metadata",
+                ],
+                output_options={
+                    "granular_bboxes": ["word", "line", "cell"],
+                    "images_to_save": ["layout"],
+                    "spatial_text": {
+                        "preserve_very_small_text": True,
+                    },
                 },
-            },
-            processing_options={
-                "cost_optimizer": {"enable": False},
-            },
-        )
+                processing_options={
+                    "cost_optimizer": {"enable": False},
+                },
+            )
 
         return save_llamacloud_outputs(
             result,
@@ -371,6 +420,8 @@ class LlamaCloudDocParser(OCRModelBase):
 
 
 class MistralOCRDocParser(OCRModelBase):
+    model_name = "Mistral OCR"
+
     def __init__(
         self,
         model="mistral-ocr-latest",
@@ -434,14 +485,15 @@ class MistralOCRDocParser(OCRModelBase):
             key: value for key, value in ocr_options.items() if value is not None
         }
 
-        result = self.client.ocr.process(
-            model=self.model,
-            document={
-                "type": "document_url",
-                "document_url": signed_url.url,
-            },
-            **ocr_options,
-        )
+        with self.timed_model_run():
+            result = self.client.ocr.process(
+                model=self.model,
+                document={
+                    "type": "document_url",
+                    "document_url": signed_url.url,
+                },
+                **ocr_options,
+            )
 
         return save_mistralocr_outputs(
             result,
@@ -457,6 +509,8 @@ class MistralOCRDocParser(OCRModelBase):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "document_path",

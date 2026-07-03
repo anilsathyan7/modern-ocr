@@ -52,21 +52,33 @@ Install the project dependencies:
 uv sync
 ```
 
+For running the local models with CUDA, use a CUDA-compatible GPU with around
+12 GB of VRAM. This applies to PaddleOCR PPStructureV3, NuExtract3, and Chandra
+OCR 2.
+
 ## API Keys
 
-Set only the keys for the OCR providers you plan to run:
+Set only the keys for the services you plan to use. LandingAI ADE, LlamaParse,
+and Mistral OCR are cloud OCR providers. OpenAI is used
+only for the evaluation step.
 
 ```bash
-export OPENAI_API_KEY="..."
+# cloud OCR providers
 export LLAMA_CLOUD_API_KEY="..."
 export MISTRAL_API_KEY="..."
 export VISION_AGENT_API_KEY="..."
+
+# OpenAI evaluator
+export OPENAI_API_KEY="..."
 ```
 
 ## Run OCR
 
-Generate OCR outputs for the configured parsers. If no document path is passed,
-`ocr_models.py` uses `input/modern_ocr_test.png`.
+Run OCR for the given input document across all configured parsers. If no
+document path is passed, `ocr_models.py` uses `input/modern_ocr_test.png`. Each
+model writes its extracted text, raw details, and any visual overlays under its
+own `output/<parser_name>/` directory. Run this step first; the evaluator reads
+these saved outputs.
 
 ```bash
 # default input document
@@ -76,14 +88,46 @@ uv run python ocr_models.py
 uv run python ocr_models.py input/virology_pg2.pdf
 ```
 
-Outputs are written under `output/<parser_name>/`, for example
-`output/paddleocr/readable_output.md` and `output/paddleocr/full_detail.json`.
+For example, PaddleOCR writes `output/paddleocr/readable_output.md` and
+`output/paddleocr/full_detail.json`.
 
 Example OCR overlay outputs:
 
 | Chandra OCR 2 | LandingAI |
 | --- | --- |
 | ![Chandra OCR 2 OCR overlay](images/chandra_ocr_2_ocr_overlay.png) | ![LandingAI OCR overlay](images/landingai_ocr_overlay.png) |
+
+## Model Comparison
+
+Use local models when you want offline control and can provide a CUDA GPU.
+Use cloud parsers when you want managed OCR quality, hosted document processing,
+or easier setup.
+
+Timings are from `input/modern_ocr_test.png` on an NVIDIA GeForce RTX 5070 Ti
+Laptop GPU. They measure only the core model/API call, not model loading, file
+saving, or overlay generation.
+
+| Model | Inference | Timing | Pros | Cons |
+| --- | --- | --- | --- | --- |
+| PaddleOCR PPStructureV3 | Local CUDA | 2.99s | Fast local inference with rich layout OCR, tables, formulas, seals, and overlays | Missed difficult orientation, spacing, and hallucinated text in some cases |
+| NuExtract3 | Local CUDA | 59.19s | Very good for structured key-value extraction and semantic document content | No visual grounding or bounding boxes |
+| Chandra OCR 2 | Local CUDA | 78.64s | Strong layout chunks, Markdown/HTML output, and overlays | Slower local VLM inference and higher GPU memory needs |
+| LandingAI ADE | Cloud API | 19.15s | Grounded chunks and versatile parsing across handwriting, images, and diagrams | API cost and remote processing |
+| LlamaParse | Cloud API | 3.59s | Fast cloud parsing with granular items, strong reading order, and layout images | API cost, remote processing, and imperfect visual grounding in some cases |
+| Mistral OCR | Cloud API | 0.52s | Very fast hosted OCR with Markdown, block details, image extraction, and overlays | API cost and remote processing |
+
+- PaddleOCR uses PPStructureV3 as a modular OCR pipeline, combining
+  PP-DocLayout, PP-OCRv6 text detection/recognition, and specialized document
+  modules.
+- NuExtract3 and Chandra OCR 2 are both fine-tuned from the same Qwen3.5 base
+  family, both are in the 4-5B parameter range, and both run as single
+  end-to-end VLMs rather than multi-stage OCR pipelines.
+- LandingAI ADE and LlamaParse are hosted, agent-oriented document
+  parsing services that return grounded layout artifacts and manage the parsing
+  pipeline behind their APIs.
+- Mistral OCR v4+ is a hosted, lightweight, focused multimodal OCR model/API for
+  document text, layout blocks, images, confidence scores, and structured
+  annotations.
 
 ## Run Evaluation
 
